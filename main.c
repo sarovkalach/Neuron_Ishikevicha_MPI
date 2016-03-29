@@ -462,7 +462,7 @@ int main(int argc, char* argv[]){
     if( node_number ){
 
         for( i = 0; i < N_neur_node; ++i )
-            I_syn_node[i] = I_syn_start;
+            I_syn_node[i] = I_syn_start + node_number;
 
     } // if node_number
 
@@ -539,7 +539,7 @@ int main(int argc, char* argv[]){
     while( t <= t_end ) {
 
         // - выполняем решение СДУ на элементарном шаге
-
+ 
         // вычисление элементарного действия из дискретной схемы СДУ
         if( node_number ){
 
@@ -553,8 +553,8 @@ int main(int argc, char* argv[]){
                N_neur_node, 
                V_node, 
                u_node, 
-               I_syn, 
-               I_ext, 
+               I_syn_node, 
+               I_ext_node, 
                &C, 
                &V_a, 
                &V_b, 
@@ -699,6 +699,17 @@ int main(int argc, char* argv[]){
             }
         #endif
 
+        // Значения из массива для синаптического тока делим по узлам
+        MPI_Scatterv(I_syn, node_count_neur, node_displ_neur, MPI_FLOAT, I_syn_node, N_neur_node,  MPI_FLOAT, 0, MPI_COMM_WORLD  );
+
+        #if DEBUG > 1
+            if( node_number == 1 ){
+                printf("\033[36m    Порция значений синаптического тока на первом узле: \033[30;0m");
+                for(i=0;i<N_neur_node;++i) 
+                    printf("%8.6lf ",I_syn_node[i]);
+                puts("");
+            }
+        #endif
 
 
         // запись результатов пока в файл
