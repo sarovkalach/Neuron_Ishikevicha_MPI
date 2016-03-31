@@ -70,11 +70,11 @@ void make_rand_connections(
 
     int __i;
 
-//    #pragma omp parallel default(shared)
+    #pragma omp parallel default(shared)
     {
-//        srand( time(NULL) + _uniq + omp_get_thread_num() );
-        srand( time(NULL) + _uniq );
-//        #pragma omp  for private(__i) 
+        srand( time(NULL) + _uniq + omp_get_thread_num() );
+        //srand( time(NULL) + _uniq );
+        #pragma omp  for private(__i) 
         for ( __i = 0; __i < _N_con; ++__i ){
 
              // нейроны для связи выбираем случайно

@@ -3,13 +3,15 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <postgresql/libpq-fe.h>
+//#include <postgresql/libpq-fe.h>
 
 
 #include "par_utils.h"
 #include "models_neurons.h"
 #include "models_connections.h"
 #include "ode_numerical.h"
+
+#include "models_neurons_gpu.h"
 
 // 1 - этапы, 2 - значения, 3 - дополнительные проверки
 #define DEBUG 1
@@ -40,9 +42,9 @@ int main(int argc, char* argv[]){
     MPI_Comm_rank(MPI_COMM_WORLD,&node_number);
 
 
-    PGconn *conn;
+    //PGconn *conn;
 
-    PGresult *res;
+    //PGresult *res;
 
     // --- входные переменные 
 
@@ -102,6 +104,9 @@ int main(int argc, char* argv[]){
     // предельный потенциал
     float V_lim;
 
+    // потенциал после спайка
+    float V_after_spike;
+
     // число нитей
     int N_omp_threads;
 
@@ -116,6 +121,10 @@ int main(int argc, char* argv[]){
 
     // число найденных спайков на узле
     int idx_spike_node = 0;
+
+    // флаг использовать/неиспользовать GPU
+    int isGPU;
+
 
     // --- управляющий узел выполняет вспомогательные работы
 
@@ -177,7 +186,7 @@ int main(int argc, char* argv[]){
         u_b = 0.5; 
         u_d = 100.; 
 
-        N_con = 1000;
+        N_con =1000;
         N_neur_exc = 96;
         weight_con_min = 50.;
         weight_con_max = 100.;
@@ -187,11 +196,14 @@ int main(int argc, char* argv[]){
         y_con_start = 0.;
         tau = 4.;
         V_lim = 30.;
+        V_after_spike = -50.;
 
         dt = 0.1;
-        t_end = 1000.;
+        t_end = 1000;
 
         N_omp_threads = 2;
+
+        isGPU = 0;
 
         // проверки для входных данных
         // в дальнейшем ошибка будет записана в БД
@@ -254,11 +266,14 @@ int main(int argc, char* argv[]){
     MPI_Bcast(&y_con_start,1,MPI_FLOAT,0,MPI_COMM_WORLD);
     MPI_Bcast(&tau,1,MPI_FLOAT,0,MPI_COMM_WORLD);
     MPI_Bcast(&V_lim,1,MPI_FLOAT,0,MPI_COMM_WORLD);
+    MPI_Bcast(&V_after_spike,1,MPI_FLOAT,0,MPI_COMM_WORLD);
 
     MPI_Bcast(&dt,1,MPI_FLOAT,0,MPI_COMM_WORLD);
     MPI_Bcast(&t_end,1,MPI_FLOAT,0,MPI_COMM_WORLD);
 
     MPI_Bcast(&N_omp_threads,1,MPI_INT,0,MPI_COMM_WORLD);
+
+    MPI_Bcast(&isGPU,1,MPI_INT,0,MPI_COMM_WORLD);
 
     omp_set_num_threads(N_omp_threads);
 
@@ -462,7 +477,7 @@ int main(int argc, char* argv[]){
     if( node_number ){
 
         for( i = 0; i < N_neur_node; ++i )
-            I_syn_node[i] = I_syn_start + node_number;
+            I_syn_node[i] = I_syn_start;
 
     } // if node_number
 
@@ -549,21 +564,43 @@ int main(int argc, char* argv[]){
                node_number, N_neur_node, V_node[0], u_node[0], I_syn[0], I_ext[0], C, V_a, V_b, V_c, u_a, u_b);
            #endif
 
-           F_Ishikevich( 
-               N_neur_node, 
-               V_node, 
-               u_node, 
-               I_syn_node, 
-               I_ext_node, 
-               &C, 
-               &V_a, 
-               &V_b, 
-               &V_c, 
-               &u_a, 
-               &u_b, 
-               k_V_node, 
-               k_u_node
-           );
+           if( isGPU ){
+
+               F_Ishikevich_GPU(
+                   N_neur_node, 
+                   V_node, 
+                   u_node, 
+                   I_syn_node, 
+                   I_ext_node, 
+                   &C, 
+                   &V_a, 
+                   &V_b, 
+                   &V_c, 
+                   &u_a, 
+                   &u_b, 
+                   k_V_node, 
+                   k_u_node
+               );
+
+           }else{
+
+               F_Ishikevich(
+                   N_neur_node, 
+                   V_node, 
+                   u_node, 
+                   I_syn_node, 
+                   I_ext_node, 
+                   &C, 
+                   &V_a, 
+                   &V_b, 
+                   &V_c, 
+                   &u_a, 
+                   &u_b, 
+                   k_V_node, 
+                   k_u_node
+               );
+
+           }
 
            // временно метод Эйлера
            for( i = 0; i < N_neur_node; ++i ){
@@ -593,7 +630,7 @@ int main(int argc, char* argv[]){
 
             if( V_prev_node[i] > V_lim ) {
 
-                 V_node[i] = -40.;
+                 V_node[i] = V_after_spike;
                  u_node[i] = u_prev_node[i] + u_d;
              }
         }
@@ -760,21 +797,15 @@ int main(int argc, char* argv[]){
         MPI_Abort(MPI_COMM_WORLD,1);
     }
 
-//printf("idx_spike_node = %d --- N_spike = %d nodes_number = %d \n", idx_spike_node, N_spike, nodes_number);
     MPI_Allgather( &idx_spike_node, 1, MPI_INT, node_count_spike, 1, MPI_INT, MPI_COMM_WORLD );
-//if(!node_number)
-//for( i = 0; i < nodes_number; ++i ) 
-//   printf("---   %d   \n", node_count_spike[i]);
 
     node_displ_spike[0] = 0;
+    #pragma omp parallel for private(i) default(shared)
     for( i = 1; i < nodes_number; ++i ){
         node_displ_spike[i] = 0;
         for( j=0; j<i; ++j ) 
             node_displ_spike[i] += node_count_spike[j];
     }
-//if(!node_number)
-//for( i = 0; i < nodes_number; ++i ) 
-//   printf("---   %d   \n", node_displ_spike[i]);
 
     // собираем все спайки на нулевом узле
     MPI_Gatherv(neur_spike_node, idx_spike_node, MPI_INT, neur_spike_znode, node_count_spike, node_displ_spike, MPI_INT, 0, MPI_COMM_WORLD);
