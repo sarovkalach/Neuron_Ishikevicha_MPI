@@ -6,14 +6,6 @@
         MPI_Abort(MPI_COMM_WORLD,1);
     }
 
-    // массив для хранения значений вспомогательной переменной u
-    // из СДУ для модели Ижикевича
-    float * u = (float*)malloc(N_neur*sizeof(float));
-    if( !u ){
-        puts("\033[31;1mОшибка выделения памяти (u) \033[30;0m ");
-        MPI_Abort(MPI_COMM_WORLD,1);
-    }
-
     // V и u на  узле
     float * V_node = (float*)malloc(N_neur_node*sizeof(float));
     if( !V_node ){

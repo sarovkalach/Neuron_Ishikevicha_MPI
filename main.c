@@ -468,9 +468,8 @@ int main(int argc, char* argv[]){
         }
     }
 
-    // сбор потенциала V_node и вспомогательной переменной u_node в единые вектора
+    // сбор потенциала V_node в единый вектор
     MPI_Allgatherv(V_node, N_neur_node, MPI_FLOAT, V, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
-    MPI_Allgatherv(u_node, N_neur_node, MPI_FLOAT, u, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
 
 
     // инициализация в начальный момент времени синаптического тока I_syn 
@@ -671,9 +670,8 @@ int main(int argc, char* argv[]){
         }
 
 
-        // сбор потенциалов V_node и вспомогательной переменной u_node в единые вектора
+        // сбор потенциалов V_node в единый вектор
         MPI_Allgatherv(V_node, N_neur_node, MPI_FLOAT, V, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
-        MPI_Allgatherv(u_node, N_neur_node, MPI_FLOAT, u, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
 
 
         #if DEBUG > 1

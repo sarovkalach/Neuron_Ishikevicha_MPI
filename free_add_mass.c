@@ -1,9 +1,6 @@
     free(V);
     V = NULL;
 
-    free(u);
-    u = NULL;
-
     free(V_node);
     V_node = NULL;
 
