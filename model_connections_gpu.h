@@ -18,11 +18,11 @@ void I_synaptic_exp_gpu(
     // на предыдущем временном слое
     float *_V_arr,
     // шаг по времени
-    float *_dt,
+    float _dt,
     // характерное время спада синаптического тока
-    float *_tau,
+    float _tau,
     // пределельное значение потенциала
-    float *_V_lim,
+    float _V_lim,
     // - связи
     // число связей
     int _N_con,
@@ -40,7 +40,9 @@ void I_synaptic_exp_gpu(
     float *_I_syn_arr,
     // массив значений вспомогательных модулирующих переменных
     // на текущем временном слое
-    float *_y_curr_arr
+    float *_y_curr_arr,
+    int size_block_x,
+    int size_block_y
 
 );
 
