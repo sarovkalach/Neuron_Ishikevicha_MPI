@@ -12,10 +12,15 @@
 #include "ode_numerical.h"
 
 #include "models_neurons_gpu.h"
+#include "model_connections_gpu.h"
+
 
 // 1 - этапы, 2 - значения, 3 - дополнительные проверки
 #define DEBUG 1
+#define VIDEO 0
 
+#define SIZE_BLOCK_X 32		// размеры блока для видеокарт ВРЕМЕННО!!!!!
+#define SIZE_BLOCK_Y 16		//
 
 int main(int argc, char* argv[]){
 
@@ -199,7 +204,7 @@ int main(int argc, char* argv[]){
         V_after_spike = -50.;
 
         dt = 0.1;
-        t_end = 1000;
+        t_end = 1000/0.5f;
 
         N_omp_threads = 2;
 
@@ -686,6 +691,7 @@ int main(int argc, char* argv[]){
 
         // перерасчет синаптического тока
         if( node_number ){
+#if VIDEO < 1
 
             //убывание тока по экспоненте со скачком при спайке
             I_synaptic_exp(
@@ -703,6 +709,25 @@ int main(int argc, char* argv[]){
                 y_con_curr_node
             );
 
+#endif
+#if VIDEO > 0
+            I_synaptic_exp_gpu(
+        	    N_neur,
+        	    V,
+        	    dt,
+        	    tau,
+        	    V_lim,
+        	    N_con_node,
+        	    y_con_prev_node,
+        	    pre_con_node,
+        	    post_con_node,
+        	    weights_con_node,
+        	    part_I_syn_node, // используется 0..N_neur
+        	    y_con_curr_node,
+        	    SIZE_BLOCK_X,
+        	    SIZE_BLOCK_Y
+        	);
+#endif
             #pragma omp parallel for private(i) default(shared)
             for( i=0; i<N_con_node; ++i)
                 y_con_prev_node[i] = y_con_curr_node[i];
