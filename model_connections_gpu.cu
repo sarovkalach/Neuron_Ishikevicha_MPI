@@ -111,7 +111,7 @@ void I_synaptic_exp_gpu(
     CHECK(cudaMalloc((void **)&weights_con_dev, _N_con*sizeof(float)));
     CHECK(cudaMemcpy(weights_con_dev, _weights_arr, _N_con*sizeof(float), cudaMemcpyHostToDevice));
 
-    I_synaptic_exp_kernel<<<grid, block,_N_neur*sizeof(float)>>>(V_dev,_N_con_x,y_prev_dev,pre_con_dev,post_con_dev,weights_con_dev,I_syn_dev,y_curr_dev);
+    I_synaptic_exp_kernel<<<grid, block>>>(V_dev,_N_con_x,y_prev_dev,pre_con_dev,post_con_dev,weights_con_dev,I_syn_dev,y_curr_dev);
 
     CHECK(cudaMemcpy(_I_syn_arr, I_syn_dev, _N_neur*sizeof(float), cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(_V_arr, V_dev, _N_neur*sizeof(float), cudaMemcpyDeviceToHost));
