@@ -18,12 +18,6 @@
         MPI_Abort(MPI_COMM_WORLD,1);
     }
 
-    // массив для хранения синаптических токов для каждого нейрона
-    float * I_syn = (float*)malloc(N_neur*sizeof(float));
-    if( !I_syn ){
-        puts("\033[31;1mОшибка выделения памяти (I_syn) \033[30;0m ");
-        MPI_Abort(MPI_COMM_WORLD,1);
-    }
 
     // часть массива значений синаптических токов на узле 
     float * I_syn_node = (float*)malloc(N_neur_node*sizeof(float));
