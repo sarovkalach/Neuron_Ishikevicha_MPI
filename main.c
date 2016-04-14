@@ -473,12 +473,11 @@ int main(int argc, char* argv[]){
         }
     }
 
-    // сбор потенциала V_node и вспомогательной переменной u_node в единые вектора
+    // сбор потенциала V_node в единый вектор
     MPI_Allgatherv(V_node, N_neur_node, MPI_FLOAT, V, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
-    MPI_Allgatherv(u_node, N_neur_node, MPI_FLOAT, u, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
 
 
-    // инициализация в начальный момент времени синаптического тока I_syn 
+    // инициализация в начальный момент времени синаптического тока I_syn_node 
     if( node_number ){
 
         for( i = 0; i < N_neur_node; ++i )
@@ -487,7 +486,7 @@ int main(int argc, char* argv[]){
     } // if node_number
 
     // сбор массивов синаптических токов в единый
-    MPI_Allgatherv(I_syn_node, N_neur_node, MPI_FLOAT, I_syn, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
+    //MPI_Allgatherv(I_syn_node, N_neur_node, MPI_FLOAT, I_syn, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
 
     // инициализация вспомогательных модулирующих переменных y_con_*
     if( node_number ){
@@ -512,11 +511,11 @@ int main(int argc, char* argv[]){
         }
         puts("");
 
-        printf("\033[36m    Синаптические токи, проверка на управляющем узле \033[30;0m");
-        for ( i = 0; i < N_neur; ++i ){
-            printf("%4.2lf ", I_syn[i]);
-         }
-        puts("");
+        //printf("\033[36m    Синаптические токи, проверка на управляющем узле \033[30;0m");
+        //for ( i = 0; i < N_neur; ++i ){
+        //    printf("%4.2lf ", I_syn[i]);
+        // }
+        //puts("");
 
 
     }
@@ -535,15 +534,24 @@ int main(int argc, char* argv[]){
         }
         puts("");
 
-        printf("\033[36m    Синаптические токи, проверка на 1-м узле \033[30;0m");
-        for ( i = 0; i < N_neur; ++i ){
-            printf("%4.2lf ", I_syn[i]);
-         }
-        puts("");
+        //printf("\033[36m    Синаптические токи, проверка на 1-м узле \033[30;0m");
+        //for ( i = 0; i < N_neur; ++i ){
+        //    printf("%4.2lf ", I_syn[i]);
+        // }
+        //puts("");
 
     }
 #endif
 
+    // массив для хранения синаптических токов для каждого нейрона на нулевом узле
+    float * I_syn = NULL;
+    if( !node_number ){
+        I_syn = (float*)malloc(N_neur*sizeof(float));
+        if( !I_syn ){
+            puts("\033[31;1mОшибка выделения памяти (I_syn) \033[30;0m ");
+            MPI_Abort(MPI_COMM_WORLD,1);
+        }
+    }
 
 
 
@@ -564,9 +572,9 @@ int main(int argc, char* argv[]){
         if( node_number ){
 
            #if DEBUG > 2
-                printf("\033[30;1m    node %d: N_neur_node=%d  V_node[0]=%lf u_node[0]=%lf  I_syn[0]=%lf \
-                I_ext[0]=%lf C=%lf V_a=%lf V_b=%lf V_c=%lf u_a=%lf ub=%lf *** \033[30;0m \n", 
-               node_number, N_neur_node, V_node[0], u_node[0], I_syn[0], I_ext[0], C, V_a, V_b, V_c, u_a, u_b);
+                printf("\033[30;1m    node %d: N_neur_node=%d  V_node[0]=%lf u_node[0]=%lf  I_syn_node[0]=%lf \
+                I_ext_node[0]=%lf C=%lf V_a=%lf V_b=%lf V_c=%lf u_a=%lf ub=%lf *** \033[30;0m \n", 
+               node_number, N_neur_node, V_node[0], u_node[0], I_syn_node[0], I_ext_node[0], C, V_a, V_b, V_c, u_a, u_b);
            #endif
 
            if( isGPU ){
@@ -676,9 +684,8 @@ int main(int argc, char* argv[]){
         }
 
 
-        // сбор потенциалов V_node и вспомогательной переменной u_node в единые вектора
+        // сбор потенциалов V_node в единый вектор
         MPI_Allgatherv(V_node, N_neur_node, MPI_FLOAT, V, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
-        MPI_Allgatherv(u_node, N_neur_node, MPI_FLOAT, u, node_count_neur, node_displ_neur, MPI_FLOAT, MPI_COMM_WORLD);
 
 
         #if DEBUG > 1
@@ -749,7 +756,7 @@ int main(int argc, char* argv[]){
         }
 
         // сбор массивов синаптических токов в единый
-        MPI_Allreduce( part_I_syn_node, I_syn, N_neur, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD );
+        MPI_Reduce( part_I_syn_node, I_syn, N_neur, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD );
 
         #if DEBUG > 1
             if( ! node_number ){
@@ -848,6 +855,11 @@ int main(int argc, char* argv[]){
 
     // удаляем память для массивов, учавствующих в расчетах
     #include "free_add_mass.c"
+    
+    if( !node_number) {
+        free(I_syn);
+        I_syn = NULL;
+    }
 
     // удаляем массивы, учавствующие в распределении нагрузки кластера
     free(node_displ_neur);

@@ -1,17 +1,11 @@
     free(V);
     V = NULL;
 
-    free(u);
-    u = NULL;
-
     free(V_node);
     V_node = NULL;
 
     free(u_node);
     u_node = NULL;
-
-    free(I_syn);
-    I_syn = NULL;
 
     free(I_syn_node);
     I_syn_node = NULL;
